@@ -20,45 +20,47 @@ public class Approbation implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Identifiant unique de l'approbation */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    /** Demande de congé concernée */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "demande_id", nullable = false)
     private DemandeConge demande;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    /** Utilisateur qui approuve ou refuse */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "approbateur_id", nullable = false)
     private Utilisateur approbateur;
 
+    /** Décision prise (APPROUVEE ou REFUSEE) */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Decision decision;
 
+    /** Commentaire facultatif */
     @Column(length = 500)
     private String commentaire;
 
-    @Column(name = "date_decision")
+    /** Date de la décision */
+    @Column(name = "date_decision", nullable = false)
     private LocalDateTime dateDecision;
 
+    /** Niveau d'approbation (Chef ou DRH) */
     @Enumerated(EnumType.STRING)
     @Column(name = "niveau_approbation", nullable = false, length = 20)
     private NiveauApprobation niveauApprobation;
 
+    // --- ENUMS ---
     public enum Decision {
         APPROUVEE("Approuvée"),
         REFUSEE("Refusée");
 
         private final String libelle;
-
-        Decision(String libelle) {
-            this.libelle = libelle;
-        }
-
-        public String getLibelle() {
-            return libelle;
-        }
+        Decision(String libelle) { this.libelle = libelle; }
+        public String getLibelle() { return libelle; }
     }
 
     public enum NiveauApprobation {
@@ -66,34 +68,38 @@ public class Approbation implements Serializable {
         DRH("Direction des Ressources Humaines");
 
         private final String libelle;
-
-        NiveauApprobation(String libelle) {
-            this.libelle = libelle;
-        }
-
-        public String getLibelle() {
-            return libelle;
-        }
+        NiveauApprobation(String libelle) { this.libelle = libelle; }
+        public String getLibelle() { return libelle; }
     }
 
+    // --- Hooks JPA ---
     @PrePersist
     public void prePersist() {
         this.dateDecision = LocalDateTime.now();
     }
 
-    // Constructeurs
+    @PreUpdate
+    public void preUpdate() {
+        this.dateDecision = LocalDateTime.now();
+    }
+
+    // --- Constructeurs ---
     public Approbation() {}
 
     public Approbation(DemandeConge demande, Utilisateur approbateur, Decision decision,
                        String commentaire, NiveauApprobation niveauApprobation) {
+        if (demande == null || approbateur == null || decision == null || niveauApprobation == null) {
+            throw new IllegalArgumentException("Les champs obligatoires ne peuvent pas être nuls");
+        }
         this.demande = demande;
         this.approbateur = approbateur;
         this.decision = decision;
         this.commentaire = commentaire;
         this.niveauApprobation = niveauApprobation;
+        this.dateDecision = LocalDateTime.now();
     }
 
-    // Getters et Setters
+    // --- Getters et Setters ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -117,6 +123,10 @@ public class Approbation implements Serializable {
 
     @Override
     public String toString() {
-        return "Approbation{id=" + id + ", decision=" + decision + ", niveau=" + niveauApprobation + "}";
+        return "Approbation{id=" + id +
+               ", decision=" + (decision != null ? decision.getLibelle() : "N/A") +
+               ", niveau=" + (niveauApprobation != null ? niveauApprobation.getLibelle() : "N/A") +
+               ", date=" + dateDecision + "}";
     }
 }
+

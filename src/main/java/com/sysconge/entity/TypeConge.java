@@ -21,52 +21,78 @@ public class TypeConge implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Identifiant unique du type de congé */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Libellé du type de congé (ex: Congé annuel) */
     @Column(nullable = false, unique = true, length = 100)
     private String libelle;
 
+    /** Description facultative */
     @Column(length = 500)
     private String description;
 
-    @Column(name = "nb_jours_max")
+    /** Nombre maximum de jours autorisés pour ce type de congé */
+    @Column(name = "nb_jours_max", nullable = false)
     private int nbJoursMax;
 
+    /** Indique si le type de congé est actif */
     @Column(nullable = false)
     private boolean actif = true;
 
-    @Column(name = "necessite_justificatif")
+    /** Indique si un justificatif est nécessaire */
+    @Column(name = "necessite_justificatif", nullable = false)
     private boolean necessiteJustificatif = false;
 
+    /** Liste des demandes associées à ce type de congé */
     @OneToMany(mappedBy = "typeConge", fetch = FetchType.LAZY)
     private List<DemandeConge> demandes = new ArrayList<>();
 
+    /** Liste des soldes associés à ce type de congé */
     @OneToMany(mappedBy = "typeConge", fetch = FetchType.LAZY)
     private List<SoldeConge> soldes = new ArrayList<>();
 
-    // Constructeurs
+    // --- Constructeurs ---
     public TypeConge() {}
 
     public TypeConge(String libelle, String description, int nbJoursMax) {
+        if (libelle == null || libelle.isBlank()) {
+            throw new IllegalArgumentException("Le libellé du type de congé ne peut pas être vide");
+        }
+        if (nbJoursMax < 0) {
+            throw new IllegalArgumentException("Le nombre de jours maximum doit être positif");
+        }
         this.libelle = libelle;
         this.description = description;
         this.nbJoursMax = nbJoursMax;
+        this.actif = true;
+        this.necessiteJustificatif = false;
     }
 
-    // Getters et Setters
+    // --- Getters et Setters ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
     public String getLibelle() { return libelle; }
-    public void setLibelle(String libelle) { this.libelle = libelle; }
+    public void setLibelle(String libelle) { 
+        if (libelle == null || libelle.isBlank()) {
+            throw new IllegalArgumentException("Le libellé du type de congé ne peut pas être vide");
+        }
+        this.libelle = libelle; 
+    }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
     public int getNbJoursMax() { return nbJoursMax; }
-    public void setNbJoursMax(int nbJoursMax) { this.nbJoursMax = nbJoursMax; }
+    public void setNbJoursMax(int nbJoursMax) { 
+        if (nbJoursMax < 0) {
+            throw new IllegalArgumentException("Le nombre de jours maximum doit être positif");
+        }
+        this.nbJoursMax = nbJoursMax; 
+    }
 
     public boolean isActif() { return actif; }
     public void setActif(boolean actif) { this.actif = actif; }
@@ -82,6 +108,11 @@ public class TypeConge implements Serializable {
 
     @Override
     public String toString() {
-        return "TypeConge{id=" + id + ", libelle='" + libelle + "', nbJoursMax=" + nbJoursMax + "}";
+        return "TypeConge{id=" + id +
+               ", libelle='" + libelle + '\'' +
+               ", nbJoursMax=" + nbJoursMax +
+               ", actif=" + actif +
+               ", necessiteJustificatif=" + necessiteJustificatif +
+               "}";
     }
 }

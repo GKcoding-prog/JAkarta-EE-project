@@ -8,7 +8,7 @@ import java.util.List;
 
 /**
  * Entité Personnel - Représente un membre du personnel universitaire.
- * Hérite logiquement de Utilisateur via une relation @OneToOne.
+ * Lié à un Utilisateur via une relation @OneToOne.
  */
 @Entity
 @Table(name = "personnel")
@@ -24,44 +24,55 @@ public class Personnel implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Identifiant unique du personnel */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.EAGER)
+    /** Utilisateur associé (obligatoire et unique) */
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "utilisateur_id", nullable = false, unique = true)
     private Utilisateur utilisateur;
 
-    @Column(length = 50)
+    /** Matricule interne du personnel */
+    @Column(length = 50, unique = true)
     private String matricule;
 
+    /** Fonction occupée par le personnel */
     @Column(length = 100)
     private String fonction;
 
+    /** Date d'embauche */
     @Column(name = "date_embauche")
     private LocalDate dateEmbauche;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    /** Département auquel le personnel est rattaché */
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "departement_id")
     private Departement departement;
 
+    /** Liste des demandes de congé soumises par ce personnel */
     @OneToMany(mappedBy = "demandeur", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<DemandeConge> demandes = new ArrayList<>();
 
+    /** Liste des soldes de congé associés à ce personnel */
     @OneToMany(mappedBy = "personnel", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<SoldeConge> soldes = new ArrayList<>();
 
-    // Constructeurs
+    // --- Constructeurs ---
     public Personnel() {}
 
     public Personnel(Utilisateur utilisateur, String matricule, String fonction, LocalDate dateEmbauche) {
+        if (utilisateur == null) {
+            throw new IllegalArgumentException("L'utilisateur associé ne peut pas être nul");
+        }
         this.utilisateur = utilisateur;
         this.matricule = matricule;
         this.fonction = fonction;
         this.dateEmbauche = dateEmbauche;
     }
 
-    // Getters et Setters
+    // --- Getters et Setters ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -88,6 +99,11 @@ public class Personnel implements Serializable {
 
     @Override
     public String toString() {
-        return "Personnel{id=" + id + ", matricule='" + matricule + "', fonction='" + fonction + "'}";
+        return "Personnel{id=" + id +
+               ", matricule='" + matricule + '\'' +
+               ", fonction='" + fonction + '\'' +
+               ", utilisateur=" + (utilisateur != null ? utilisateur.getId() : "N/A") +
+               ", departement=" + (departement != null ? departement.getId() : "N/A") +
+               "}";
     }
 }

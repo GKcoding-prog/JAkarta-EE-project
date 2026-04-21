@@ -5,6 +5,8 @@ import com.sysconge.entity.Approbation.Decision;
 import com.sysconge.entity.Approbation.NiveauApprobation;
 import com.sysconge.entity.DemandeConge.Statut;
 import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionAttribute;
+import jakarta.ejb.TransactionAttributeType;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -14,6 +16,7 @@ import java.util.List;
  * EJB Stateless - Gestion du workflow d'approbation des demandes de congé.
  */
 @Stateless
+@TransactionAttribute(TransactionAttributeType.REQUIRED)
 public class ApprobationEJB {
 
     @PersistenceContext(unitName = "SysCongePU")

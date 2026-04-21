@@ -2,6 +2,8 @@ package com.sysconge.ejb;
 
 import com.sysconge.entity.SoldeConge;
 import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionAttribute;
+import jakarta.ejb.TransactionAttributeType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceContext;
@@ -12,6 +14,7 @@ import java.util.List;
  * EJB Stateless - Gestion des soldes de congé du personnel.
  */
 @Stateless
+@TransactionAttribute(TransactionAttributeType.REQUIRED)
 public class SoldeCongeEJB {
 
     @PersistenceContext(unitName = "SysCongePU")
@@ -23,9 +26,9 @@ public class SoldeCongeEJB {
     public List<SoldeConge> listerSoldes(Long personnelId) {
         int anneeActuelle = LocalDate.now().getYear();
         return em.createNamedQuery("SoldeConge.findByPersonnel", SoldeConge.class)
-                .setParameter("personnelId", personnelId)
-                .setParameter("annee", anneeActuelle)
-                .getResultList();
+                 .setParameter("personnelId", personnelId)
+                 .setParameter("annee", anneeActuelle)
+                 .getResultList();
     }
 
     /**
@@ -35,10 +38,10 @@ public class SoldeCongeEJB {
         int anneeActuelle = LocalDate.now().getYear();
         try {
             return em.createNamedQuery("SoldeConge.findByPersonnelAndType", SoldeConge.class)
-                    .setParameter("personnelId", personnelId)
-                    .setParameter("typeCongeId", typeCongeId)
-                    .setParameter("annee", anneeActuelle)
-                    .getSingleResult();
+                     .setParameter("personnelId", personnelId)
+                     .setParameter("typeCongeId", typeCongeId)
+                     .setParameter("annee", anneeActuelle)
+                     .getSingleResult();
         } catch (NoResultException e) {
             return null;
         }
@@ -52,6 +55,8 @@ public class SoldeCongeEJB {
         if (solde != null) {
             solde.setJoursPris(solde.getJoursPris() + nbJours);
             em.merge(solde);
+        } else {
+            throw new IllegalStateException("Solde introuvable pour ce personnel et type de congé");
         }
     }
 
@@ -60,10 +65,7 @@ public class SoldeCongeEJB {
      */
     public boolean verifierDisponibilite(Long personnelId, Long typeCongeId, int nbJours) {
         SoldeConge solde = trouverSolde(personnelId, typeCongeId);
-        if (solde == null) {
-            return false;
-        }
-        return solde.getSoldeRestant() >= nbJours;
+        return solde != null && solde.getSoldeRestant() >= nbJours;
     }
 
     /**
@@ -76,6 +78,7 @@ public class SoldeCongeEJB {
         );
         if (existant != null) {
             existant.setJoursAcquis(soldeConge.getJoursAcquis());
+            existant.setJoursPris(soldeConge.getJoursPris());
             return em.merge(existant);
         } else {
             em.persist(soldeConge);
@@ -87,7 +90,11 @@ public class SoldeCongeEJB {
      * Crée un solde de congé.
      */
     public SoldeConge creerSolde(SoldeConge solde) {
+        if (solde == null) {
+            throw new IllegalArgumentException("Le solde de congé ne peut pas être nul");
+        }
         em.persist(solde);
         return solde;
     }
 }
+

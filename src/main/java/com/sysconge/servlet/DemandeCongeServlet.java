@@ -3,7 +3,7 @@ package com.sysconge.servlet;
 import com.sysconge.ejb.DemandeCongeEJB;
 import com.sysconge.ejb.SoldeCongeEJB;
 import com.sysconge.entity.*;
-import jakarta.inject.Inject;
+import jakarta.ejb.EJB;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -20,28 +20,29 @@ import java.util.List;
 @WebServlet(name = "DemandeCongeServlet", urlPatterns = {"/demande/*"})
 public class DemandeCongeServlet extends HttpServlet {
 
-    @Inject
-    private DemandeCongeEJB demandeCongeEJB;
+    private static final long serialVersionUID = 1L;
 
-    @Inject
-    private SoldeCongeEJB soldeCongeEJB;
+    @EJB private DemandeCongeEJB demandeCongeEJB;
+    @EJB private SoldeCongeEJB soldeCongeEJB;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String pathInfo = request.getPathInfo();
-        HttpSession session = request.getSession();
-        Personnel personnel = (Personnel) session.getAttribute("personnel");
+        HttpSession session = request.getSession(false);
+        Personnel personnel = (session != null) ? (Personnel) session.getAttribute("personnelConnecte") : null;
 
+        if (personnel == null) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+
+        String pathInfo = request.getPathInfo();
         if (pathInfo == null || "/".equals(pathInfo) || "/liste".equals(pathInfo)) {
-            // Liste des demandes
             listerDemandes(request, response, personnel);
         } else if ("/nouvelle".equals(pathInfo)) {
-            // Formulaire de nouvelle demande
             formulaireNouvelleDemande(request, response);
         } else if (pathInfo.startsWith("/detail/")) {
-            // Détail d'une demande
             detailDemande(request, response, pathInfo);
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -52,10 +53,15 @@ public class DemandeCongeServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String pathInfo = request.getPathInfo();
-        HttpSession session = request.getSession();
-        Personnel personnel = (Personnel) session.getAttribute("personnel");
+        HttpSession session = request.getSession(false);
+        Personnel personnel = (session != null) ? (Personnel) session.getAttribute("personnelConnecte") : null;
 
+        if (personnel == null) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+
+        String pathInfo = request.getPathInfo();
         if ("/nouvelle".equals(pathInfo)) {
             creerDemande(request, response, personnel);
         } else if ("/annuler".equals(pathInfo)) {
@@ -67,10 +73,8 @@ public class DemandeCongeServlet extends HttpServlet {
 
     private void listerDemandes(HttpServletRequest request, HttpServletResponse response, Personnel personnel)
             throws ServletException, IOException {
-        if (personnel != null) {
-            List<DemandeConge> demandes = demandeCongeEJB.listerParDemandeur(personnel.getId());
-            request.setAttribute("demandes", demandes);
-        }
+        List<DemandeConge> demandes = demandeCongeEJB.listerParDemandeur(personnel.getId());
+        request.setAttribute("demandes", demandes);
         request.getRequestDispatcher("/WEB-INF/jsp/demande/liste.jsp").forward(request, response);
     }
 
@@ -105,9 +109,8 @@ public class DemandeCongeServlet extends HttpServlet {
         String dateFinStr = request.getParameter("dateFin");
         String motif = request.getParameter("motif");
 
-        // Validation
         if (typeCongeIdStr == null || dateDebutStr == null || dateFinStr == null ||
-                typeCongeIdStr.trim().isEmpty() || dateDebutStr.trim().isEmpty() || dateFinStr.trim().isEmpty()) {
+            typeCongeIdStr.isBlank() || dateDebutStr.isBlank() || dateFinStr.isBlank()) {
             request.setAttribute("erreur", "Veuillez remplir tous les champs obligatoires.");
             formulaireNouvelleDemande(request, response);
             return;
@@ -118,7 +121,6 @@ public class DemandeCongeServlet extends HttpServlet {
             LocalDate dateDebut = LocalDate.parse(dateDebutStr);
             LocalDate dateFin = LocalDate.parse(dateFinStr);
 
-            // Vérifications
             if (dateFin.isBefore(dateDebut)) {
                 request.setAttribute("erreur", "La date de fin doit être après la date de début.");
                 formulaireNouvelleDemande(request, response);
@@ -131,7 +133,6 @@ public class DemandeCongeServlet extends HttpServlet {
                 return;
             }
 
-            // Vérifier le solde
             long nbJours = java.time.temporal.ChronoUnit.DAYS.between(dateDebut, dateFin) + 1;
             if (!soldeCongeEJB.verifierDisponibilite(personnel.getId(), typeCongeId, (int) nbJours)) {
                 request.setAttribute("erreur", "Solde de congé insuffisant pour ce type de congé.");
@@ -149,14 +150,14 @@ public class DemandeCongeServlet extends HttpServlet {
     }
 
     private void annulerDemande(HttpServletRequest request, HttpServletResponse response, Personnel personnel)
-            throws ServletException, IOException {
+            throws IOException {
         String demandeIdStr = request.getParameter("demandeId");
         if (demandeIdStr != null) {
             try {
                 Long demandeId = Long.parseLong(demandeIdStr);
                 demandeCongeEJB.annulerDemande(demandeId, personnel.getId());
             } catch (NumberFormatException e) {
-                // Ignorer
+                // Ignorer erreur de format
             }
         }
         response.sendRedirect(request.getContextPath() + "/demande/liste");

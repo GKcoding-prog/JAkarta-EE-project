@@ -21,52 +21,63 @@ public class Notification implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Identifiant unique de la notification */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    /** Utilisateur destinataire de la notification */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "destinataire_id", nullable = false)
     private Utilisateur destinataire;
 
+    /** Titre de la notification */
     @Column(nullable = false, length = 200)
     private String titre;
 
+    /** Message de la notification */
     @Column(nullable = false, length = 1000)
     private String message;
 
+    /** Indique si la notification a été lue */
     @Column(nullable = false)
     private boolean lue = false;
 
-    @Column(name = "date_creation")
+    /** Date de création de la notification */
+    @Column(name = "date_creation", nullable = false)
     private LocalDateTime dateCreation;
 
+    /** Demande de congé associée (facultatif) */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "demande_id")
     private DemandeConge demande;
 
+    // --- Hooks JPA ---
     @PrePersist
     public void prePersist() {
         this.dateCreation = LocalDateTime.now();
     }
 
-    // Constructeurs
+    // --- Constructeurs ---
     public Notification() {}
 
     public Notification(Utilisateur destinataire, String titre, String message) {
+        if (destinataire == null || titre == null || message == null) {
+            throw new IllegalArgumentException("Les champs obligatoires ne peuvent pas être nuls");
+        }
         this.destinataire = destinataire;
         this.titre = titre;
         this.message = message;
+        this.lue = false;
+        this.dateCreation = LocalDateTime.now();
     }
 
     public Notification(Utilisateur destinataire, String titre, String message, DemandeConge demande) {
-        this.destinataire = destinataire;
-        this.titre = titre;
-        this.message = message;
+        this(destinataire, titre, message);
         this.demande = demande;
     }
 
-    // Getters et Setters
+    // --- Getters et Setters ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -90,6 +101,11 @@ public class Notification implements Serializable {
 
     @Override
     public String toString() {
-        return "Notification{id=" + id + ", titre='" + titre + "', lue=" + lue + "}";
+        return "Notification{id=" + id +
+               ", titre='" + titre + '\'' +
+               ", destinataire=" + (destinataire != null ? destinataire.getId() : "N/A") +
+               ", lue=" + lue +
+               ", dateCreation=" + dateCreation +
+               "}";
     }
 }

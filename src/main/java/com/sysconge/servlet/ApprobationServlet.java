@@ -4,7 +4,7 @@ import com.sysconge.ejb.ApprobationEJB;
 import com.sysconge.ejb.DemandeCongeEJB;
 import com.sysconge.entity.*;
 import com.sysconge.entity.Utilisateur.Role;
-import jakarta.inject.Inject;
+import jakarta.ejb.EJB;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -21,21 +21,25 @@ import java.util.List;
 @WebServlet(name = "ApprobationServlet", urlPatterns = {"/approbation/*"})
 public class ApprobationServlet extends HttpServlet {
 
-    @Inject
-    private ApprobationEJB approbationEJB;
+    private static final long serialVersionUID = 1L;
 
-    @Inject
-    private DemandeCongeEJB demandeCongeEJB;
+    @EJB private ApprobationEJB approbationEJB;
+    @EJB private DemandeCongeEJB demandeCongeEJB;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String pathInfo = request.getPathInfo();
-        HttpSession session = request.getSession();
-        Utilisateur utilisateur = (Utilisateur) session.getAttribute("utilisateur");
-        Personnel personnel = (Personnel) session.getAttribute("personnel");
+        HttpSession session = request.getSession(false);
+        Utilisateur utilisateur = (session != null) ? (Utilisateur) session.getAttribute("utilisateurConnecte") : null;
+        Personnel personnel = (session != null) ? (Personnel) session.getAttribute("personnelConnecte") : null;
 
+        if (utilisateur == null) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+
+        String pathInfo = request.getPathInfo();
         if (pathInfo == null || "/".equals(pathInfo) || "/liste".equals(pathInfo)) {
             listerDemandesATraiter(request, response, utilisateur, personnel);
         } else if (pathInfo.startsWith("/detail/")) {
@@ -51,10 +55,15 @@ public class ApprobationServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String pathInfo = request.getPathInfo();
-        HttpSession session = request.getSession();
-        Utilisateur utilisateur = (Utilisateur) session.getAttribute("utilisateur");
+        HttpSession session = request.getSession(false);
+        Utilisateur utilisateur = (session != null) ? (Utilisateur) session.getAttribute("utilisateurConnecte") : null;
 
+        if (utilisateur == null) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+
+        String pathInfo = request.getPathInfo();
         if ("/traiter".equals(pathInfo)) {
             traiterDemande(request, response, utilisateur);
         } else {
@@ -63,7 +72,7 @@ public class ApprobationServlet extends HttpServlet {
     }
 
     private void listerDemandesATraiter(HttpServletRequest request, HttpServletResponse response,
-                                         Utilisateur utilisateur, Personnel personnel)
+                                        Utilisateur utilisateur, Personnel personnel)
             throws ServletException, IOException {
 
         List<DemandeConge> demandes;

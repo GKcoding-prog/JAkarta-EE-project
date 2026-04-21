@@ -3,7 +3,7 @@ package com.sysconge.servlet;
 import com.sysconge.ejb.UtilisateurEJB;
 import com.sysconge.entity.Personnel;
 import com.sysconge.entity.Utilisateur;
-import jakarta.inject.Inject;
+import jakarta.ejb.EJB;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -18,7 +18,9 @@ import java.io.IOException;
 @WebServlet(name = "AuthServlet", urlPatterns = {"/login", "/logout"})
 public class AuthServlet extends HttpServlet {
 
-    @Inject
+    private static final long serialVersionUID = 1L;
+
+    @EJB
     private UtilisateurEJB utilisateurEJB;
 
     @Override
@@ -38,7 +40,7 @@ public class AuthServlet extends HttpServlet {
 
         // Vérifier si déjà connecté
         HttpSession session = request.getSession(false);
-        if (session != null && session.getAttribute("utilisateur") != null) {
+        if (session != null && session.getAttribute("utilisateurConnecte") != null) {
             response.sendRedirect(request.getContextPath() + "/dashboard");
             return;
         }
@@ -53,30 +55,35 @@ public class AuthServlet extends HttpServlet {
         String email = request.getParameter("email");
         String motDePasse = request.getParameter("motDePasse");
 
-        if (email == null || email.trim().isEmpty() || motDePasse == null || motDePasse.trim().isEmpty()) {
+        if (email == null || email.isBlank() || motDePasse == null || motDePasse.isBlank()) {
             request.setAttribute("erreur", "Veuillez remplir tous les champs.");
             request.getRequestDispatcher("/WEB-INF/jsp/login.jsp").forward(request, response);
             return;
         }
 
-        Utilisateur utilisateur = utilisateurEJB.authentifier(email.trim(), motDePasse);
+        try {
+            Utilisateur utilisateur = utilisateurEJB.authentifier(email.trim(), motDePasse);
 
-        if (utilisateur == null) {
-            request.setAttribute("erreur", "Email ou mot de passe incorrect.");
-            request.setAttribute("email", email);
-            request.getRequestDispatcher("/WEB-INF/jsp/login.jsp").forward(request, response);
-            return;
+            if (utilisateur == null) {
+                request.setAttribute("erreur", "Email ou mot de passe incorrect.");
+                request.setAttribute("email", email);
+                request.getRequestDispatcher("/WEB-INF/jsp/login.jsp").forward(request, response);
+                return;
+            }
+
+            // Stocker l'utilisateur et le personnel en session
+            HttpSession session = request.getSession(true);
+            session.setAttribute("utilisateurConnecte", utilisateur);
+
+            Personnel personnel = utilisateurEJB.trouverPersonnelParUtilisateur(utilisateur.getId());
+            if (personnel != null) {
+                session.setAttribute("personnelConnecte", personnel);
+            }
+
+            response.sendRedirect(request.getContextPath() + "/dashboard");
+
+        } catch (Exception e) {
+            throw new ServletException("Erreur lors de l'authentification", e);
         }
-
-        // Stocker l'utilisateur et le personnel en session
-        HttpSession session = request.getSession(true);
-        session.setAttribute("utilisateur", utilisateur);
-
-        Personnel personnel = utilisateurEJB.trouverPersonnelParUtilisateur(utilisateur.getId());
-        if (personnel != null) {
-            session.setAttribute("personnel", personnel);
-        }
-
-        response.sendRedirect(request.getContextPath() + "/dashboard");
     }
 }

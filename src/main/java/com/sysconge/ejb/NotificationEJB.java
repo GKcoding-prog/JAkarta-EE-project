@@ -4,6 +4,8 @@ import com.sysconge.entity.DemandeConge;
 import com.sysconge.entity.Notification;
 import com.sysconge.entity.Utilisateur;
 import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionAttribute;
+import jakarta.ejb.TransactionAttributeType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
@@ -12,6 +14,7 @@ import java.util.List;
  * EJB Stateless - Gestion des notifications.
  */
 @Stateless
+@TransactionAttribute(TransactionAttributeType.REQUIRED)
 public class NotificationEJB {
 
     @PersistenceContext(unitName = "SysCongePU")
@@ -21,6 +24,9 @@ public class NotificationEJB {
      * Crée une notification simple.
      */
     public Notification creerNotification(Utilisateur destinataire, String titre, String message) {
+        if (destinataire == null) {
+            throw new IllegalArgumentException("Le destinataire ne peut pas être nul");
+        }
         Notification notification = new Notification(destinataire, titre, message);
         em.persist(notification);
         return notification;
@@ -30,6 +36,9 @@ public class NotificationEJB {
      * Crée une notification liée à une demande de congé.
      */
     public Notification creerNotification(Utilisateur destinataire, String titre, String message, DemandeConge demande) {
+        if (destinataire == null) {
+            throw new IllegalArgumentException("Le destinataire ne peut pas être nul");
+        }
         Notification notification = new Notification(destinataire, titre, message, demande);
         em.persist(notification);
         return notification;
@@ -40,8 +49,8 @@ public class NotificationEJB {
      */
     public List<Notification> listerParDestinataire(Long utilisateurId) {
         return em.createNamedQuery("Notification.findByDestinataire", Notification.class)
-                .setParameter("utilisateurId", utilisateurId)
-                .getResultList();
+                 .setParameter("utilisateurId", utilisateurId)
+                 .getResultList();
     }
 
     /**
@@ -49,8 +58,8 @@ public class NotificationEJB {
      */
     public List<Notification> listerNonLues(Long utilisateurId) {
         return em.createNamedQuery("Notification.findNonLues", Notification.class)
-                .setParameter("utilisateurId", utilisateurId)
-                .getResultList();
+                 .setParameter("utilisateurId", utilisateurId)
+                 .getResultList();
     }
 
     /**
@@ -58,8 +67,8 @@ public class NotificationEJB {
      */
     public long compterNonLues(Long utilisateurId) {
         return em.createNamedQuery("Notification.countNonLues", Long.class)
-                .setParameter("utilisateurId", utilisateurId)
-                .getSingleResult();
+                 .setParameter("utilisateurId", utilisateurId)
+                 .getSingleResult();
     }
 
     /**
@@ -70,6 +79,8 @@ public class NotificationEJB {
         if (notification != null) {
             notification.setLue(true);
             em.merge(notification);
+        } else {
+            throw new IllegalStateException("Notification introuvable pour mise à jour");
         }
     }
 
@@ -78,7 +89,8 @@ public class NotificationEJB {
      */
     public void marquerToutesCommeLues(Long utilisateurId) {
         em.createQuery("UPDATE Notification n SET n.lue = true WHERE n.destinataire.id = :userId AND n.lue = false")
-                .setParameter("userId", utilisateurId)
-                .executeUpdate();
+          .setParameter("userId", utilisateurId)
+          .executeUpdate();
     }
 }
+

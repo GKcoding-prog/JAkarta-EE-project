@@ -3,12 +3,13 @@ package com.sysconge.servlet;
 import com.sysconge.ejb.*;
 import com.sysconge.entity.*;
 import com.sysconge.entity.Utilisateur.Role;
-import jakarta.inject.Inject;
+import jakarta.ejb.EJB;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
@@ -20,24 +21,26 @@ import java.util.List;
 @WebServlet(name = "AdminServlet", urlPatterns = {"/admin/*"})
 public class AdminServlet extends HttpServlet {
 
-    @Inject
-    private UtilisateurEJB utilisateurEJB;
+    private static final long serialVersionUID = 1L;
 
-    @Inject
-    private DepartementEJB departementEJB;
-
-    @Inject
-    private DemandeCongeEJB demandeCongeEJB;
-
-    @Inject
-    private SoldeCongeEJB soldeCongeEJB;
+    @EJB private UtilisateurEJB utilisateurEJB;
+    @EJB private DepartementEJB departementEJB;
+    @EJB private DemandeCongeEJB demandeCongeEJB;
+    @EJB private SoldeCongeEJB soldeCongeEJB;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String pathInfo = request.getPathInfo();
+        HttpSession session = request.getSession(false);
+        Utilisateur utilisateur = (session != null) ? (Utilisateur) session.getAttribute("utilisateurConnecte") : null;
 
+        if (utilisateur == null || utilisateur.getRole() != Role.ADMIN) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+
+        String pathInfo = request.getPathInfo();
         if (pathInfo == null || "/".equals(pathInfo)) {
             response.sendRedirect(request.getContextPath() + "/admin/utilisateurs");
             return;
@@ -74,8 +77,15 @@ public class AdminServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String pathInfo = request.getPathInfo();
+        HttpSession session = request.getSession(false);
+        Utilisateur utilisateur = (session != null) ? (Utilisateur) session.getAttribute("utilisateurConnecte") : null;
 
+        if (utilisateur == null || utilisateur.getRole() != Role.ADMIN) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+
+        String pathInfo = request.getPathInfo();
         if (pathInfo == null) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
@@ -126,16 +136,13 @@ public class AdminServlet extends HttpServlet {
         String fonction = request.getParameter("fonction");
         String departementIdStr = request.getParameter("departementId");
 
-        // Validation basique
         if (nom == null || prenom == null || email == null || motDePasse == null || roleStr == null ||
-                nom.trim().isEmpty() || prenom.trim().isEmpty() || email.trim().isEmpty() ||
-                motDePasse.trim().isEmpty()) {
+            nom.isBlank() || prenom.isBlank() || email.isBlank() || motDePasse.isBlank()) {
             request.setAttribute("erreur", "Veuillez remplir tous les champs obligatoires.");
             formulaireNouvelUtilisateur(request, response);
             return;
         }
 
-        // Vérifier si l'email existe
         if (utilisateurEJB.trouverParEmail(email.trim()) != null) {
             request.setAttribute("erreur", "Un utilisateur avec cet email existe déjà.");
             formulaireNouvelUtilisateur(request, response);
@@ -146,7 +153,6 @@ public class AdminServlet extends HttpServlet {
         Utilisateur utilisateur = new Utilisateur(nom.trim(), prenom.trim(), email.trim(), motDePasse, role);
         utilisateurEJB.creerUtilisateur(utilisateur);
 
-        // Créer le personnel associé
         if (role != Role.ADMIN) {
             Personnel personnel = new Personnel();
             personnel.setUtilisateur(utilisateur);
@@ -154,14 +160,13 @@ public class AdminServlet extends HttpServlet {
             personnel.setFonction(fonction);
             personnel.setDateEmbauche(LocalDate.now());
 
-            if (departementIdStr != null && !departementIdStr.trim().isEmpty()) {
+            if (departementIdStr != null && !departementIdStr.isBlank()) {
                 Departement dep = departementEJB.trouverParId(Long.parseLong(departementIdStr));
                 personnel.setDepartement(dep);
             }
 
             utilisateurEJB.creerPersonnel(personnel);
 
-            // Créer les soldes par défaut
             int annee = LocalDate.now().getYear();
             List<TypeConge> types = demandeCongeEJB.listerTousTypesConge();
             for (TypeConge type : types) {
@@ -185,7 +190,7 @@ public class AdminServlet extends HttpServlet {
         String nom = request.getParameter("nom");
         String description = request.getParameter("description");
 
-        if (nom == null || nom.trim().isEmpty()) {
+        if (nom == null || nom.isBlank()) {
             request.setAttribute("erreur", "Le nom du département est obligatoire.");
             request.getRequestDispatcher("/WEB-INF/jsp/admin/departement-form.jsp").forward(request, response);
             return;
@@ -203,23 +208,29 @@ public class AdminServlet extends HttpServlet {
         request.getRequestDispatcher("/WEB-INF/jsp/admin/types-conge.jsp").forward(request, response);
     }
 
-    private void creerTypeConge(HttpServletRequest request, HttpServletResponse response)
+        private void creerTypeConge(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         String libelle = request.getParameter("libelle");
         String description = request.getParameter("description");
         String nbJoursMaxStr = request.getParameter("nbJoursMax");
         String necessiteJustificatif = request.getParameter("necessiteJustificatif");
 
-        if (libelle == null || libelle.trim().isEmpty() || nbJoursMaxStr == null) {
+        if (libelle == null || libelle.isBlank() || nbJoursMaxStr == null || nbJoursMaxStr.isBlank()) {
             request.setAttribute("erreur", "Veuillez remplir tous les champs obligatoires.");
             request.getRequestDispatcher("/WEB-INF/jsp/admin/type-conge-form.jsp").forward(request, response);
             return;
         }
 
-        TypeConge typeConge = new TypeConge(libelle.trim(), description, Integer.parseInt(nbJoursMaxStr));
-        typeConge.setNecessiteJustificatif("on".equals(necessiteJustificatif));
-        demandeCongeEJB.creerTypeConge(typeConge);
-        response.sendRedirect(request.getContextPath() + "/admin/types-conge?success=created");
+        try {
+            int nbJoursMax = Integer.parseInt(nbJoursMaxStr);
+            TypeConge typeConge = new TypeConge(libelle.trim(), description, nbJoursMax);
+            typeConge.setNecessiteJustificatif("on".equals(necessiteJustificatif));
+            demandeCongeEJB.creerTypeConge(typeConge);
+            response.sendRedirect(request.getContextPath() + "/admin/types-conge?success=created");
+        } catch (NumberFormatException e) {
+            request.setAttribute("erreur", "Le nombre de jours doit être un entier valide.");
+            request.getRequestDispatcher("/WEB-INF/jsp/admin/type-conge-form.jsp").forward(request, response);
+        }
     }
 
     private void listerToutesDemandes(HttpServletRequest request, HttpServletResponse response)
@@ -236,7 +247,7 @@ public class AdminServlet extends HttpServlet {
             try {
                 utilisateurEJB.desactiverUtilisateur(Long.parseLong(idStr));
             } catch (NumberFormatException e) {
-                // Ignorer
+                // Ignorer erreur de format
             }
         }
         response.sendRedirect(request.getContextPath() + "/admin/utilisateurs");

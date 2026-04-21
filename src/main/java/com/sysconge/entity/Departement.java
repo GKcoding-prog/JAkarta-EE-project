@@ -20,37 +20,50 @@ public class Departement implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Identifiant unique du département */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Nom du département (unique et obligatoire) */
     @Column(nullable = false, unique = true, length = 150)
     private String nom;
 
+    /** Description facultative du département */
     @Column(length = 500)
     private String description;
 
+    /** Liste du personnel rattaché au département */
     @OneToMany(mappedBy = "departement", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Personnel> personnels = new ArrayList<>();
 
-    @OneToOne(fetch = FetchType.LAZY)
+    /** Chef du département (relation optionnelle) */
+    @OneToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "chef_id")
     private Personnel chef;
 
-    // Constructeurs
+    // --- Constructeurs ---
     public Departement() {}
 
     public Departement(String nom, String description) {
+        if (nom == null || nom.isBlank()) {
+            throw new IllegalArgumentException("Le nom du département ne peut pas être vide");
+        }
         this.nom = nom;
         this.description = description;
     }
 
-    // Getters et Setters
+    // --- Getters et Setters ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
     public String getNom() { return nom; }
-    public void setNom(String nom) { this.nom = nom; }
+    public void setNom(String nom) { 
+        if (nom == null || nom.isBlank()) {
+            throw new IllegalArgumentException("Le nom du département ne peut pas être vide");
+        }
+        this.nom = nom; 
+    }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
@@ -63,6 +76,10 @@ public class Departement implements Serializable {
 
     @Override
     public String toString() {
-        return "Departement{id=" + id + ", nom='" + nom + "'}";
+        return "Departement{id=" + id +
+               ", nom='" + nom + '\'' +
+               ", chef=" + (chef != null ? chef.getId() : "N/A") +
+               ", nbPersonnels=" + (personnels != null ? personnels.size() : 0) +
+               "}";
     }
 }

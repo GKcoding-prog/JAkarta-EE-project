@@ -5,7 +5,7 @@ import com.sysconge.ejb.UtilisateurEJB;
 import com.sysconge.entity.Personnel;
 import com.sysconge.entity.SoldeConge;
 import com.sysconge.entity.Utilisateur;
-import jakarta.inject.Inject;
+import jakarta.ejb.EJB;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -21,19 +21,23 @@ import java.util.List;
 @WebServlet(name = "ProfilServlet", urlPatterns = {"/profil"})
 public class ProfilServlet extends HttpServlet {
 
-    @Inject
-    private UtilisateurEJB utilisateurEJB;
+    private static final long serialVersionUID = 1L;
 
-    @Inject
-    private SoldeCongeEJB soldeCongeEJB;
+    @EJB private UtilisateurEJB utilisateurEJB;
+    @EJB private SoldeCongeEJB soldeCongeEJB;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        HttpSession session = request.getSession();
-        Utilisateur utilisateur = (Utilisateur) session.getAttribute("utilisateur");
-        Personnel personnel = (Personnel) session.getAttribute("personnel");
+        HttpSession session = request.getSession(false);
+        Utilisateur utilisateur = (session != null) ? (Utilisateur) session.getAttribute("utilisateurConnecte") : null;
+        Personnel personnel = (session != null) ? (Personnel) session.getAttribute("personnelConnecte") : null;
+
+        if (utilisateur == null) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
 
         request.setAttribute("utilisateur", utilisateur);
         request.setAttribute("personnel", personnel);
@@ -50,14 +54,19 @@ public class ProfilServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        HttpSession session = request.getSession();
-        Utilisateur utilisateur = (Utilisateur) session.getAttribute("utilisateur");
+        HttpSession session = request.getSession(false);
+        Utilisateur utilisateur = (session != null) ? (Utilisateur) session.getAttribute("utilisateurConnecte") : null;
+
+        if (utilisateur == null) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
 
         String ancienMotDePasse = request.getParameter("ancienMotDePasse");
         String nouveauMotDePasse = request.getParameter("nouveauMotDePasse");
         String confirmMotDePasse = request.getParameter("confirmMotDePasse");
 
-        if (ancienMotDePasse != null && !ancienMotDePasse.isEmpty()) {
+        if (ancienMotDePasse != null && !ancienMotDePasse.isBlank()) {
             if (!utilisateur.getMotDePasse().equals(ancienMotDePasse)) {
                 request.setAttribute("erreur", "L'ancien mot de passe est incorrect.");
             } else if (nouveauMotDePasse == null || nouveauMotDePasse.length() < 4) {
@@ -65,10 +74,14 @@ public class ProfilServlet extends HttpServlet {
             } else if (!nouveauMotDePasse.equals(confirmMotDePasse)) {
                 request.setAttribute("erreur", "Les mots de passe ne correspondent pas.");
             } else {
-                utilisateur.setMotDePasse(nouveauMotDePasse);
-                utilisateurEJB.mettreAJour(utilisateur);
-                session.setAttribute("utilisateur", utilisateur);
-                request.setAttribute("success", "Mot de passe modifié avec succès.");
+                try {
+                    utilisateur.setMotDePasse(nouveauMotDePasse);
+                    utilisateurEJB.mettreAJour(utilisateur);
+                    session.setAttribute("utilisateurConnecte", utilisateur);
+                    request.setAttribute("success", "Mot de passe modifié avec succès.");
+                } catch (Exception e) {
+                    request.setAttribute("erreur", "Erreur lors de la mise à jour du mot de passe.");
+                }
             }
         }
 

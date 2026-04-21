@@ -3,7 +3,7 @@ package com.sysconge.servlet;
 import com.sysconge.ejb.NotificationEJB;
 import com.sysconge.entity.Notification;
 import com.sysconge.entity.Utilisateur;
-import jakarta.inject.Inject;
+import jakarta.ejb.EJB;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -19,23 +19,30 @@ import java.util.List;
 @WebServlet(name = "NotificationServlet", urlPatterns = {"/notification/*"})
 public class NotificationServlet extends HttpServlet {
 
-    @Inject
+    private static final long serialVersionUID = 1L;
+
+    @EJB
     private NotificationEJB notificationEJB;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String pathInfo = request.getPathInfo();
-        HttpSession session = request.getSession();
-        Utilisateur utilisateur = (Utilisateur) session.getAttribute("utilisateur");
+        HttpSession session = request.getSession(false);
+        Utilisateur utilisateur = (session != null) ? (Utilisateur) session.getAttribute("utilisateurConnecte") : null;
 
+        if (utilisateur == null) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+
+        String pathInfo = request.getPathInfo();
         if (pathInfo == null || "/".equals(pathInfo) || "/liste".equals(pathInfo)) {
             List<Notification> notifications = notificationEJB.listerParDestinataire(utilisateur.getId());
             request.setAttribute("notifications", notifications);
             request.getRequestDispatcher("/WEB-INF/jsp/notification/liste.jsp").forward(request, response);
         } else if ("/marquer-lue".equals(pathInfo)) {
-            // Géré par POST
+            // Redirection vers POST
             response.sendRedirect(request.getContextPath() + "/notification/liste");
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -46,21 +53,33 @@ public class NotificationServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String pathInfo = request.getPathInfo();
-        HttpSession session = request.getSession();
-        Utilisateur utilisateur = (Utilisateur) session.getAttribute("utilisateur");
+        HttpSession session = request.getSession(false);
+        Utilisateur utilisateur = (session != null) ? (Utilisateur) session.getAttribute("utilisateurConnecte") : null;
 
-        if ("/marquer-lue".equals(pathInfo)) {
-            String notifId = request.getParameter("notificationId");
-            if (notifId != null) {
-                try {
-                    notificationEJB.marquerCommeLue(Long.parseLong(notifId));
-                } catch (NumberFormatException e) {
-                    // Ignorer
+        if (utilisateur == null) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+
+        String pathInfo = request.getPathInfo();
+        try {
+            if ("/marquer-lue".equals(pathInfo)) {
+                String notifId = request.getParameter("notificationId");
+                if (notifId != null && !notifId.isBlank()) {
+                    try {
+                        notificationEJB.marquerCommeLue(Long.parseLong(notifId));
+                    } catch (NumberFormatException e) {
+                        request.setAttribute("erreur", "Identifiant de notification invalide.");
+                    }
                 }
+            } else if ("/marquer-toutes-lues".equals(pathInfo)) {
+                notificationEJB.marquerToutesCommeLues(utilisateur.getId());
+            } else {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return;
             }
-        } else if ("/marquer-toutes-lues".equals(pathInfo)) {
-            notificationEJB.marquerToutesCommeLues(utilisateur.getId());
+        } catch (Exception e) {
+            throw new ServletException("Erreur lors du traitement des notifications", e);
         }
 
         response.sendRedirect(request.getContextPath() + "/notification/liste");

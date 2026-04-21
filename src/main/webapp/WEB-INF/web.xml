@@ -5,30 +5,89 @@
                              https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
          version="6.0">
 
-    <display-name>SysCongé</display-name>
-    <description>Système de Gestion des Demandes de Congés du Personnel Universitaire</description>
+    <display-name>SysConge</display-name>
 
-    <!-- Welcome File -->
+    <!-- Page d'accueil par défaut -->
     <welcome-file-list>
-        <welcome-file>index.jsp</welcome-file>
+        <welcome-file>login.jsp</welcome-file>
     </welcome-file-list>
 
-    <!-- Session Configuration -->
-    <session-config>
-        <session-timeout>30</session-timeout>
-    </session-config>
+    <!-- ===================== SERVLETS ===================== -->
 
-    <!-- Error Pages -->
-    <error-page>
-        <error-code>404</error-code>
-        <location>/WEB-INF/jsp/common/404.jsp</location>
-    </error-page>
-    <error-page>
-        <error-code>500</error-code>
-        <location>/WEB-INF/jsp/common/500.jsp</location>
-    </error-page>
+    <!-- AuthServlet -->
+    <servlet>
+        <servlet-name>AuthServlet</servlet-name>
+        <servlet-class>com.sysconge.servlet.AuthServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AuthServlet</servlet-name>
+        <url-pattern>/login</url-pattern>
+        <url-pattern>/logout</url-pattern>
+    </servlet-mapping>
 
-    <!-- Character Encoding Filter -->
+    <!-- DashboardServlet -->
+    <servlet>
+        <servlet-name>DashboardServlet</servlet-name>
+        <servlet-class>com.sysconge.servlet.DashboardServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>DashboardServlet</servlet-name>
+        <url-pattern>/dashboard</url-pattern>
+    </servlet-mapping>
+
+    <!-- DemandeCongeServlet -->
+    <servlet>
+        <servlet-name>DemandeCongeServlet</servlet-name>
+        <servlet-class>com.sysconge.servlet.DemandeCongeServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>DemandeCongeServlet</servlet-name>
+        <url-pattern>/demande/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- ApprobationServlet -->
+    <servlet>
+        <servlet-name>ApprobationServlet</servlet-name>
+        <servlet-class>com.sysconge.servlet.ApprobationServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ApprobationServlet</servlet-name>
+        <url-pattern>/approbation/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- NotificationServlet -->
+    <servlet>
+        <servlet-name>NotificationServlet</servlet-name>
+        <servlet-class>com.sysconge.servlet.NotificationServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>NotificationServlet</servlet-name>
+        <url-pattern>/notification/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- ProfilServlet -->
+    <servlet>
+        <servlet-name>ProfilServlet</servlet-name>
+        <servlet-class>com.sysconge.servlet.ProfilServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ProfilServlet</servlet-name>
+        <url-pattern>/profil</url-pattern>
+    </servlet-mapping>
+
+    <!-- AdminServlet -->
+    <servlet>
+        <servlet-name>AdminServlet</servlet-name>
+        <servlet-class>com.sysconge.servlet.AdminServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AdminServlet</servlet-name>
+        <url-pattern>/admin/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- ===================== FILTRES ===================== -->
+
+    <!-- Filtre d'encodage UTF-8 -->
     <filter>
         <filter-name>EncodingFilter</filter-name>
         <filter-class>com.sysconge.util.EncodingFilter</filter-class>
@@ -38,7 +97,7 @@
         <url-pattern>/*</url-pattern>
     </filter-mapping>
 
-    <!-- Authentication Filter -->
+    <!-- Filtre d'authentification -->
     <filter>
         <filter-name>AuthFilter</filter-name>
         <filter-class>com.sysconge.util.AuthFilter</filter-class>
@@ -52,4 +111,6 @@
         <url-pattern>/profil</url-pattern>
         <url-pattern>/notification/*</url-pattern>
     </filter-mapping>
+
 </web-app>
+

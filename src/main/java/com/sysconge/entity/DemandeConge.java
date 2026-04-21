@@ -35,40 +35,51 @@ public class DemandeConge implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Identifiant unique de la demande */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    /** Personnel demandeur */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "demandeur_id", nullable = false)
     private Personnel demandeur;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    /** Type de congé demandé */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "type_conge_id", nullable = false)
     private TypeConge typeConge;
 
+    /** Date de début du congé */
     @Column(name = "date_debut", nullable = false)
     private LocalDate dateDebut;
 
+    /** Date de fin du congé */
     @Column(name = "date_fin", nullable = false)
     private LocalDate dateFin;
 
+    /** Motif du congé */
     @Column(length = 1000)
     private String motif;
 
+    /** Statut de la demande */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private Statut statut = Statut.EN_ATTENTE;
 
-    @Column(name = "date_creation")
+    /** Date de création */
+    @Column(name = "date_creation", nullable = false)
     private LocalDateTime dateCreation;
 
-    @Column(name = "date_modification")
+    /** Date de dernière modification */
+    @Column(name = "date_modification", nullable = false)
     private LocalDateTime dateModification;
 
+    /** Liste des approbations liées à la demande */
     @OneToMany(mappedBy = "demande", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Approbation> approbations = new ArrayList<>();
 
+    // --- ENUM Statut ---
     public enum Statut {
         EN_ATTENTE("En attente"),
         APPROUVEE_CHEF("Approuvée par le chef"),
@@ -77,16 +88,11 @@ public class DemandeConge implements Serializable {
         ANNULEE("Annulée");
 
         private final String libelle;
-
-        Statut(String libelle) {
-            this.libelle = libelle;
-        }
-
-        public String getLibelle() {
-            return libelle;
-        }
+        Statut(String libelle) { this.libelle = libelle; }
+        public String getLibelle() { return libelle; }
     }
 
+    // --- Hooks JPA ---
     @PrePersist
     public void prePersist() {
         this.dateCreation = LocalDateTime.now();
@@ -98,15 +104,21 @@ public class DemandeConge implements Serializable {
         this.dateModification = LocalDateTime.now();
     }
 
-    // Constructeurs
+    // --- Constructeurs ---
     public DemandeConge() {}
 
     public DemandeConge(Personnel demandeur, TypeConge typeConge, LocalDate dateDebut, LocalDate dateFin, String motif) {
+        if (demandeur == null || typeConge == null || dateDebut == null || dateFin == null) {
+            throw new IllegalArgumentException("Les champs obligatoires ne peuvent pas être nuls");
+        }
         this.demandeur = demandeur;
         this.typeConge = typeConge;
         this.dateDebut = dateDebut;
         this.dateFin = dateFin;
         this.motif = motif;
+        this.statut = Statut.EN_ATTENTE;
+        this.dateCreation = LocalDateTime.now();
+        this.dateModification = LocalDateTime.now();
     }
 
     /**
@@ -119,7 +131,7 @@ public class DemandeConge implements Serializable {
         return 0;
     }
 
-    // Getters et Setters
+    // --- Getters et Setters ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -152,6 +164,10 @@ public class DemandeConge implements Serializable {
 
     @Override
     public String toString() {
-        return "DemandeConge{id=" + id + ", statut=" + statut + ", dateDebut=" + dateDebut + ", dateFin=" + dateFin + "}";
+        return "DemandeConge{id=" + id +
+               ", statut=" + (statut != null ? statut.getLibelle() : "N/A") +
+               ", dateDebut=" + dateDebut +
+               ", dateFin=" + dateFin +
+               ", nbJours=" + getNbJours() + "}";
     }
 }
